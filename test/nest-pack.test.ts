@@ -221,3 +221,26 @@ describe('Track S2: nest pack (entity-spec, dto, entity, repo, service, controll
     expect(afterStatus).toBe(beforeStatus);
   });
 });
+
+describe('Fixture: fixtures/nest', () => {
+  it('copies fixtures/nest, runs init + resource + dto --check + verify + doctor', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'joy-cli-fix-s2-'));
+    try {
+      fs.cpSync(path.resolve(import.meta.dirname, '../fixtures/nest'), tmp, {
+        recursive: true,
+      });
+      expect(await runCli(['init'], tmp)).toBe(0);
+      expect(
+        await runCli(
+          ['g', 'resource', 'Invoice', '--fields', 'number:str,total:float,paid:bool=false'],
+          tmp
+        )
+      ).toBe(0);
+      expect(await runCli(['g', 'dto', 'Invoice', '--check'], tmp)).toBe(0);
+      expect(await runCli(['verify', 'resource', 'Invoice'], tmp)).toBe(0);
+      expect(await runCli(['doctor', '--strict'], tmp)).toBe(0);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});

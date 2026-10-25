@@ -107,3 +107,27 @@ describe('Track S1: sveltekit pack (page, component, test)', () => {
     expect(afterStatus).toBe(beforeStatus);
   });
 });
+
+describe('Fixture: fixtures/sveltekit', () => {
+  it('copies fixtures/sveltekit, runs init + page + component + verify + doctor', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'joy-cli-fix-s1-'));
+    try {
+      fs.cpSync(path.resolve(import.meta.dirname, '../fixtures/sveltekit'), tmp, {
+        recursive: true,
+      });
+      expect(await runCli(['init'], tmp)).toBe(0);
+      expect(await runCli(['g', 'page', 'pricing'], tmp)).toBe(0);
+      expect(
+        await runCli(
+          ['g', 'component', 'PriceCard', '--props', 'amount:number,currency:string=USD'],
+          tmp
+        )
+      ).toBe(0);
+      expect(await runCli(['verify', 'page', 'pricing'], tmp)).toBe(0);
+      expect(await runCli(['verify', 'component', 'PriceCard'], tmp)).toBe(0);
+      expect(await runCli(['doctor', '--strict'], tmp)).toBe(0);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});

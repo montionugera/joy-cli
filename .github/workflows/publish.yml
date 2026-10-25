@@ -1,0 +1,75 @@
+name: Publish @montionugera/joy-cli
+
+on:
+  push:
+    tags:
+      - 'packages-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and pack only, do not publish'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & Verify Tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+      - run: npm pack --pack-destination "$RUNNER_TEMP"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-tarball
+          path: ${{ runner.temp }}/*.tgz
+
+  publish:
+    name: Publish to GitHub Packages & npmjs.org (OIDC)
+    needs: [build]
+    if: github.event_name == 'push' || inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+          path: ${{ runner.temp }}/tarballs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@montionugera'
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for tgz in "$RUNNER_TEMP"/tarballs/*.tgz; do
+            npm publish "$tgz" --ignore-scripts --registry https://npm.pkg.github.com
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Publish to npmjs.org (Trusted Publishing OIDC)
+        run: |
+          npm install -g 'npm@^11.5.1'
+          for tgz in "$RUNNER_TEMP"/tarballs/*.tgz; do
+            npm publish "$tgz" --ignore-scripts --access public --registry https://registry.npmjs.org --@montionugera:registry=https://registry.npmjs.org
+          done

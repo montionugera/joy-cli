@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, Typecheck & Test (Unit + Fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+      - name: Fixture End-to-End Verification (SvelteKit & Nest)
+        run: |
+          tmp_s1="$(mktemp -d)"
+          cp -R fixtures/sveltekit/. "$tmp_s1/"
+          node dist/bin.js init --dry-run
+          pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" init
+          pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" g page pricing
+          pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" g component PriceCard --props amount:number,currency:string=USD
+          pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" verify page pricing
+          pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" verify component PriceCard
+
+          tmp_s2="$(mktemp -d)"
+          cp -R fixtures/nest/. "$tmp_s2/"
+          pnpm --dir "$tmp_s2" exec "$(pwd)/dist/bin.js" init
+          pnpm --dir "$tmp_s2" exec "$(pwd)/dist/bin.js" g resource Invoice --fields number:str,total:float,paid:bool=false
+          pnpm --dir "$tmp_s2" exec "$(pwd)/dist/bin.js" g dto Invoice --check
+          pnpm --dir "$tmp_s2" exec "$(pwd)/dist/bin.js" verify resource Invoice
+          pnpm --dir "$tmp_s2" exec "$(pwd)/dist/bin.js" doctor --strict

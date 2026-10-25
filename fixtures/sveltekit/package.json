@@ -1,0 +1,14 @@
+{
+  "name": "joy-cli-fixture-sveltekit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "check": "node -e \"process.exit(0)\"",
+    "test:unit": "node -e \"process.exit(0)\" --"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^2.50.0",
+    "svelte": "^5.54.0"
+  }
+}
