@@ -32,7 +32,7 @@ jobs:
         run: |
           tmp_s1="$(mktemp -d)"
           cp -R fixtures/sveltekit/. "$tmp_s1/"
-          node dist/bin.js init --dry-run
+          node dist/bin.js --help
           pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" init
           pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" g page pricing
           pnpm --dir "$tmp_s1" exec "$(pwd)/dist/bin.js" g component PriceCard --props amount:number,currency:string=USD

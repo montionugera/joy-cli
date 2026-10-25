@@ -68,6 +68,7 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
       - name: Publish to npmjs.org (Trusted Publishing OIDC)
+        if: vars.ENABLE_NPMJS_PUBLISH == 'true'
         run: |
           npm install -g 'npm@^11.5.1'
           for tgz in "$RUNNER_TEMP"/tarballs/*.tgz; do
