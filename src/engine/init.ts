@@ -21,6 +21,34 @@ export interface InitResult {
   touchedFiles: string[];
 }
 
+const INTERNAL_DEPS_BY_STACK: Record<
+  'sveltekit' | 'nest',
+  { dependencies: Record<string, string>; devDependencies: Record<string, string> }
+> = {
+  sveltekit: {
+    dependencies: {
+      '@montionugera/joy-tokens': '^0.2.1',
+      '@montionugera/joy-icons': '^0.3.0',
+      '@montionugera/joy-brand': '^0.2.0',
+    },
+    devDependencies: {
+      '@montionugera/joy-cli': '^0.1.3',
+    },
+  },
+  nest: {
+    dependencies: {
+      '@montionugera/entity-spec': '^2.0.28',
+      '@montionugera/entity-spec-gen-zod': '^2.0.28',
+      '@montionugera/entity-spec-gen-openapi': '^2.0.28',
+      '@montionugera/server-decorator': '^2.0.28',
+      zod: '^3.23.8',
+    },
+    devDependencies: {
+      '@montionugera/joy-cli': '^0.1.3',
+    },
+  },
+};
+
 export function runInit(cwd: string, opts: InitOptions = {}): InitResult {
   const stack = detectStack(cwd);
   if (!stack) {
@@ -50,13 +78,48 @@ export function runInit(cwd: string, opts: InitOptions = {}): InitResult {
     }
   }
 
-  // 2a. If joy-design-internal stack, install all 6 component/parity/CSS anchors idempotently
+  // 2. Ensure internal @montionugera/* libraries and @montionugera/joy-cli are declared in package.json
+  const pkgPath = path.join(cwd, 'package.json');
+  if ((stack === 'sveltekit' || stack === 'nest') && fs.existsSync(pkgPath)) {
+    const rawPkg = fs.readFileSync(pkgPath, 'utf8');
+    const pkg = JSON.parse(rawPkg) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+      [k: string]: unknown;
+    };
+    const required = INTERNAL_DEPS_BY_STACK[stack];
+    let pkgChanged = false;
+    pkg.dependencies = pkg.dependencies ?? {};
+    pkg.devDependencies = pkg.devDependencies ?? {};
+
+    for (const [dep, ver] of Object.entries(required.dependencies)) {
+      if (!pkg.dependencies[dep] && !pkg.devDependencies[dep]) {
+        pkg.dependencies[dep] = ver;
+        pkgChanged = true;
+      }
+    }
+    for (const [dep, ver] of Object.entries(required.devDependencies)) {
+      if (!pkg.dependencies[dep] && !pkg.devDependencies[dep]) {
+        pkg.devDependencies[dep] = ver;
+        pkgChanged = true;
+      }
+    }
+
+    if (pkgChanged) {
+      touchedFiles.push('package.json');
+      if (!opts.dryRun) {
+        fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
+      }
+    }
+  }
+
+  // 3a. If joy-design-internal stack, install all 6 component/parity/CSS anchors idempotently
   if (stack === 'joy-design-internal') {
     const jdTouched = installJoyDesignAnchors(cwd, Boolean(opts.dryRun));
     touchedFiles.push(...jdTouched);
   }
 
-  // 2. If nest stack, install AppModule anchors idempotently
+  // 3b. If nest stack, install AppModule anchors idempotently
   if (stack === 'nest') {
     const appModuleRel = detectAppModulePath(cwd);
     const appModuleAbs = path.join(cwd, appModuleRel);
@@ -72,7 +135,7 @@ export function runInit(cwd: string, opts: InitOptions = {}): InitResult {
     }
   }
 
-  // 3. Write joy.config.json
+  // 4. Write joy.config.json
   const configPath = path.join(cwd, 'joy.config.json');
   const renderedConfig = `${JSON.stringify(config, null, 2)}\n`;
   const existingConfig = fs.existsSync(configPath)
@@ -85,19 +148,9 @@ export function runInit(cwd: string, opts: InitOptions = {}): InitResult {
     }
   }
 
-  // 4. Optional --install-deps
+  // 5. Optional --install-deps runs pnpm install to fetch newly declared internal packages
   if (opts.installDeps && !opts.dryRun) {
-    const depsToInstall =
-      stack === 'sveltekit'
-        ? ['@montionugera/joy-tokens']
-        : [
-            '@montionugera/entity-spec',
-            '@montionugera/entity-spec-gen-zod',
-            '@montionugera/entity-spec-gen-openapi',
-            '@montionugera/server-decorator',
-            'zod',
-          ];
-    execSync(`pnpm add ${depsToInstall.join(' ')}`, { cwd, stdio: 'inherit' });
+    execSync('pnpm install', { cwd, stdio: 'inherit' });
   }
 
   return { stack, config, touchedFiles };
