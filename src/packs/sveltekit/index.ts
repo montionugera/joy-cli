@@ -51,11 +51,11 @@ function renderSveltePage(route: string, hasJoySvelte: boolean): string {
 <section class="joy-page-${kebab}">
   <header class="joy-page-header">
     <h1>{data.title ?? '${title}'}</h1>
-    <Badge variant="primary">Active</Badge>
+    <Badge variant="brand">Active</Badge>
   </header>
 
   <div class="joy-page-body">
-    <Button variant="primary">Get Started</Button>
+    <Button variant="solid">Get Started</Button>
   </div>
 </section>
 

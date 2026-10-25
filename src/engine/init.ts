@@ -33,7 +33,7 @@ const INTERNAL_DEPS_BY_STACK: Record<
       '@montionugera/joy-brand': '^0.2.0',
     },
     devDependencies: {
-      '@montionugera/joy-cli': '^0.1.4',
+      '@montionugera/joy-cli': '^0.1.5',
     },
   },
   nest: {
