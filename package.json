@@ -1,6 +1,6 @@
 {
   "name": "@montionugera/joy-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Installable scaffolding CLI for Joymify TypeScript/Node (SvelteKit & NestJS) projects",
   "type": "module",
   "bin": {

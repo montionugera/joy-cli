@@ -373,8 +373,8 @@ function renderTwinTests(pascal: string, kebab: string, events: string[]): { sve
     .join('\n');
 
   return {
-    svelte: `${head}const src = fs.readFileSync(path.resolve('./src/lib/${pascal}.svelte'), 'utf8');\n\ntest('${pascal}: root class, ref and rest wiring', () => {\n  assert.ok(src.includes('joy-${kebab}'), '${pascal} must have the joy-${kebab} class');\n  assert.ok(src.includes('bind:this={ref}'), '${pascal} must expose its root through ref');\n  assert.ok(src.includes('{...rest}'), '${pascal} must spread rest props');\n${svelteEv}\n});\n`,
-    react: `${head}const src = fs.readFileSync(path.resolve('./src/${pascal}.tsx'), 'utf8');\n\ntest('${pascal}: root class, ref forwarding and rest wiring', () => {\n  assert.ok(src.includes('joy-${kebab}'), '${pascal} must have the joy-${kebab} class');\n  assert.ok(src.includes('React.forwardRef'), '${pascal} must forward its ref');\n  assert.ok(src.includes('{...rest}'), '${pascal} must spread rest props');\n${reactEv}\n});\n`,
+    svelte: `${head}const src = fs.readFileSync(new URL('../src/lib/${pascal}.svelte', import.meta.url), 'utf8');\n\ntest('${pascal}: root class, ref and rest wiring', () => {\n  assert.ok(src.includes('joy-${kebab}'), '${pascal} must have the joy-${kebab} class');\n  assert.ok(src.includes('bind:this={ref}'), '${pascal} must expose its root through ref');\n  assert.ok(src.includes('{...rest}'), '${pascal} must spread rest props');\n${svelteEv}\n});\n`,
+    react: `${head}const src = fs.readFileSync(new URL('../src/${pascal}.tsx', import.meta.url), 'utf8');\n\ntest('${pascal}: root class, ref forwarding and rest wiring', () => {\n  assert.ok(src.includes('joy-${kebab}'), '${pascal} must have the joy-${kebab} class');\n  assert.ok(src.includes('React.forwardRef'), '${pascal} must forward its ref');\n  assert.ok(src.includes('{...rest}'), '${pascal} must spread rest props');\n${reactEv}\n});\n`,
   };
 }
 
