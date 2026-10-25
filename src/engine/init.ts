@@ -27,12 +27,13 @@ const INTERNAL_DEPS_BY_STACK: Record<
 > = {
   sveltekit: {
     dependencies: {
+      '@montionugera/joy-svelte': '^0.2.1',
       '@montionugera/joy-tokens': '^0.2.1',
       '@montionugera/joy-icons': '^0.3.0',
       '@montionugera/joy-brand': '^0.2.0',
     },
     devDependencies: {
-      '@montionugera/joy-cli': '^0.1.3',
+      '@montionugera/joy-cli': '^0.1.4',
     },
   },
   nest: {

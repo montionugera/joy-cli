@@ -59,7 +59,8 @@ export function runNewProject(
           'test:unit': 'vitest run',
         },
         dependencies: {
-          '@montionugera/joy-tokens': '^0.2.1',
+          '@montionugera/joy-svelte': '^0.2.1',
+      '@montionugera/joy-tokens': '^0.2.1',
           '@montionugera/joy-icons': '^0.3.0',
           '@montionugera/joy-brand': '^0.2.0',
         },
