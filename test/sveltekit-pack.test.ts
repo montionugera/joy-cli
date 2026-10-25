@@ -52,7 +52,7 @@ describe('Track S1: sveltekit pack (page, component, test)', () => {
     expect(pageSvelte).toContain('var(--joy-');
     expect(pageSvelte).not.toContain('export let');
     expect(fs.existsSync(path.join(tmpDir, 'src/routes/pricing/+page.server.ts'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'src/routes/pricing/+page.test.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'src/routes/pricing/page.test.ts'))).toBe(true);
 
     // Verify joy verify page pricing
     expect(await runCli(['verify', 'page', 'pricing'], tmpDir)).toBe(0);

@@ -128,15 +128,19 @@ export const load: PageServerLoad = async () => {
 `;
 }
 
-function renderSveltePageTest(route: string): string {
+function renderSveltePageTest(route: string, hasVitest: boolean): string {
   const title = toPascal(route.replace(/\//g, '-'));
-  return `import { describe, it, expect } from 'vitest';
+  const runnerImport = hasVitest
+    ? `import { describe, it, assert } from 'vitest';`
+    : `import { describe, it } from 'node:test';\nimport * as assert from 'node:assert/strict';`;
+
+  return `${runnerImport}
 import { load } from './+page.server.js';
 
 describe('/${route} +page.server load', () => {
   it('returns page metadata for ${title}', async () => {
     const result = await load({} as Parameters<typeof load>[0]);
-    expect(result).toEqual({
+    assert.deepEqual(result, {
       title: '${title}',
       route: '/${route}',
     });
@@ -156,6 +160,7 @@ function renderSvelteComponent(
   const propInterfaceLines = [
     `    ref?: HTMLElement | null;`,
     `    size?: ${sizeUnion};`,
+    `    children?: Snippet;`,
     ...props.map(
       (p) => `    ${p.name}${p.optional ? '?' : ''}: ${renderPropTsType(p)};`
     ),
@@ -165,11 +170,14 @@ function renderSvelteComponent(
   const destructureLines = [
     `    ref = $bindable(null),`,
     `    size = '${sizes[1] ?? sizes[0] ?? 'md'}',`,
+    `    children,`,
     ...props.map((p) => `    ${p.name}${renderPropDefault(p)},`),
     ...events.map((ev) => `    on${ev},`),
   ];
 
   return `<script lang="ts">
+  import type { Snippet } from 'svelte';
+
   export interface ${name}Props {
 ${propInterfaceLines.join('\n')}
   }
@@ -184,7 +192,9 @@ ${destructureLines.join('\n')}
   class="joy-${kebab}"
   data-size={size}
 >
-  <slot />
+  {#if children}
+    {@render children()}
+  {/if}
 </div>
 
 <style>
@@ -201,7 +211,11 @@ ${destructureLines.join('\n')}
 `;
 }
 
-function renderSvelteComponentTest(name: string, props: PropDef[]): string {
+function renderSvelteComponentTest(
+  name: string,
+  props: PropDef[],
+  hasVitest: boolean
+): string {
   const sampleProps = props
     .filter((p) => !p.optional)
     .map((p) => {
@@ -213,13 +227,17 @@ function renderSvelteComponentTest(name: string, props: PropDef[]): string {
     })
     .join(', ');
 
-  return `import { describe, it, expect } from 'vitest';
+  const runnerImport = hasVitest
+    ? `import { describe, it, assert } from 'vitest';`
+    : `import { describe, it } from 'node:test';\nimport * as assert from 'node:assert/strict';`;
+
+  return `${runnerImport}
 import type { ${name}Props } from './${name}.svelte';
 
 describe('${name} component contract', () => {
   it('accepts valid ${name}Props', () => {
     const props: ${name}Props = { ${sampleProps} };
-    expect(props).toBeDefined();
+    assert.ok(props);
   });
 });
 `;
@@ -234,7 +252,7 @@ export const sveltekitPack: PackDef = {
   generators: {
     page: {
       name: 'page',
-      description: 'Scaffold a SvelteKit route (+page.svelte, +page.server.ts, +page.test.ts)',
+      description: 'Scaffold a SvelteKit route (+page.svelte, +page.server.ts, page.test.ts)',
       expectedPaths(ctx: GeneratorContext): string[] {
         const route = ctx.target.replace(/^\/+|\/+$/g, '');
         if (!isKebabRoute(route)) {
@@ -248,18 +266,19 @@ export const sveltekitPack: PackDef = {
         return [
           `${routesDir}/${route}/+page.svelte`,
           `${routesDir}/${route}/+page.server.ts`,
-          `${routesDir}/${route}/+page.test.ts`,
+          `${routesDir}/${route}/page.test.ts`,
         ];
       },
       plan(ctx: GeneratorContext): PlanResult {
         const route = ctx.target.replace(/^\/+|\/+$/g, '');
         const [pagePath, serverPath, testPath] = this.expectedPaths(ctx);
         const hasJoySvelte = hasPackageDep(ctx.cwd, '@montionugera/joy-svelte');
+        const hasVitest = hasPackageDep(ctx.cwd, 'vitest');
         return {
           creates: [
             { relPath: pagePath, content: renderSveltePage(route, hasJoySvelte) },
             { relPath: serverPath, content: renderSveltePageServer(route) },
-            { relPath: testPath, content: renderSveltePageTest(route), isTest: true },
+            { relPath: testPath, content: renderSveltePageTest(route, hasVitest), isTest: true },
           ],
           edits: [],
           testFiles: [testPath],
@@ -288,6 +307,7 @@ export const sveltekitPack: PackDef = {
         const props = parseProps(ctx.args.props);
         const events = parseEvents(ctx.args.events);
         const sizes = parseSizes(ctx.args.sizes);
+        const hasVitest = hasPackageDep(ctx.cwd, 'vitest');
         return {
           creates: [
             {
@@ -296,7 +316,7 @@ export const sveltekitPack: PackDef = {
             },
             {
               relPath: testPath,
-              content: renderSvelteComponentTest(ctx.target, props),
+              content: renderSvelteComponentTest(ctx.target, props, hasVitest),
               isTest: true,
             },
           ],
@@ -307,12 +327,15 @@ export const sveltekitPack: PackDef = {
     },
     test: {
       name: 'test',
-      description: 'Scaffold a sibling Vitest .test.ts file for an existing source file',
+      description: 'Scaffold a sibling .test.ts file for an existing source file',
       expectedPaths(ctx: GeneratorContext): string[] {
         const rel = ctx.target;
         const ext = path.extname(rel);
         const stem = ext ? rel.slice(0, -ext.length) : rel;
-        return [`${stem}.test.ts`];
+        // SvelteKit reserves + prefix in src/routes; strip leading + for test file
+        const dir = path.posix.dirname(stem);
+        const base = path.posix.basename(stem).replace(/^\+/, '');
+        return [dir === '.' ? `${base}.test.ts` : `${dir}/${base}.test.ts`];
       },
       plan(ctx: GeneratorContext): PlanResult {
         const absTarget = path.join(ctx.cwd, ctx.target);
@@ -325,11 +348,15 @@ export const sveltekitPack: PackDef = {
         }
         const [testPath] = this.expectedPaths(ctx);
         const baseName = path.basename(ctx.target, path.extname(ctx.target));
-        const content = `import { describe, it, expect } from 'vitest';
+        const hasVitest = hasPackageDep(ctx.cwd, 'vitest');
+        const runnerImport = hasVitest
+          ? `import { describe, it, assert } from 'vitest';`
+          : `import { describe, it } from 'node:test';\nimport * as assert from 'node:assert/strict';`;
+        const content = `${runnerImport}
 
 describe('${baseName}', () => {
   it('loads target module test harness', () => {
-    expect(true).toBe(true);
+    assert.ok(true);
   });
 });
 `;
