@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
 import { ensureNestAppModuleAnchors } from './anchors.js';
+import { installJoyDesignAnchors } from '../packs/joy-design-internal/index.js';
 import {
   defaultConfigForStack,
   detectAppModulePath,
@@ -15,7 +16,7 @@ export interface InitOptions {
 }
 
 export interface InitResult {
-  stack: 'sveltekit' | 'nest';
+  stack: 'sveltekit' | 'nest' | 'joy-design-internal';
   config: JoyConfig;
   touchedFiles: string[];
 }
@@ -47,6 +48,12 @@ export function runInit(cwd: string, opts: InitOptions = {}): InitResult {
         : `${registryLine}\n`;
       fs.writeFileSync(npmrcPath, nextNpmrc, 'utf8');
     }
+  }
+
+  // 2a. If joy-design-internal stack, install all 6 component/parity/CSS anchors idempotently
+  if (stack === 'joy-design-internal') {
+    const jdTouched = installJoyDesignAnchors(cwd, Boolean(opts.dryRun));
+    touchedFiles.push(...jdTouched);
   }
 
   // 2. If nest stack, install AppModule anchors idempotently

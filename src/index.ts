@@ -9,3 +9,6 @@ export * from './engine/doctor.js';
 export * from './packs/sveltekit/index.js';
 export * from './packs/nest/index.js';
 export * from './cli.js';
+
+export * from './packs/joy-design-internal/index.js';
+export * from './engine/new-project.js';

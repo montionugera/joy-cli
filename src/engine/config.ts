@@ -18,7 +18,14 @@ export function detectAppModulePath(cwd: string): string {
   return 'src/app.module.ts';
 }
 
-export function detectStack(cwd: string): 'sveltekit' | 'nest' | null {
+export function detectStack(cwd: string): 'sveltekit' | 'nest' | 'joy-design-internal' | null {
+  if (
+    fs.existsSync(path.join(cwd, 'packages/svelte/src/lib/index.ts')) &&
+    fs.existsSync(path.join(cwd, 'packages/react/src/index.ts')) &&
+    fs.existsSync(path.join(cwd, 'scripts/parity-check.mjs'))
+  ) {
+    return 'joy-design-internal';
+  }
   const pkgPaths = [
     path.join(cwd, 'package.json'),
     path.join(cwd, 'user-api/package.json'),
@@ -61,8 +68,33 @@ export function hasPackageDep(cwd: string, depName: string): boolean {
 
 export function defaultConfigForStack(
   cwd: string,
-  stack: 'sveltekit' | 'nest'
+  stack: 'sveltekit' | 'nest' | 'joy-design-internal'
 ): JoyConfig {
+  if (stack === 'joy-design-internal') {
+    return {
+      packs: ['joy-design-internal'],
+      paths: {
+        components: 'packages/svelte/src/lib',
+      },
+      verify: [
+        'node packages/tokens/build.js',
+        'node scripts/parity-check.mjs',
+        'node scripts/parity-check.mjs --triplet',
+        'node scripts/gen-design-md.mjs',
+        'node scripts/gen-design-md.mjs --check',
+        'bash scripts/lint-colors.sh',
+        'pnpm check',
+      ],
+      anchors: {
+        exports: 'packages/svelte/src/lib/index.ts',
+        components: 'scripts/parity-check.mjs',
+        'ref-forwarding': 'scripts/parity-check.mjs',
+        'svelte-ref-rest': 'scripts/parity-check.mjs',
+        contract: 'scripts/parity-check.mjs',
+        'component-styles-end': 'packages/tokens/build.js',
+      },
+    };
+  }
   const pkgPath = path.join(cwd, 'package.json');
   let scripts: Record<string, string> = {};
   if (fs.existsSync(pkgPath)) {

@@ -51,7 +51,8 @@ export interface PropDef {
 }
 
 export interface ParsedCliArgs {
-  command: 'init' | 'doctor' | 'verify' | 'generate' | 'help';
+  command: 'init' | 'doctor' | 'verify' | 'generate' | 'new' | 'help';
+  template?: 'sveltekit' | 'nest';
   generator?: string;
   target?: string;
   fields?: string;
@@ -89,7 +90,7 @@ export interface PlanResult {
 }
 
 export interface JoyConfig {
-  packs: ('sveltekit' | 'nest')[];
+  packs: ('sveltekit' | 'nest' | 'joy-design-internal')[];
   paths: {
     routes?: string;
     components?: string;
@@ -131,7 +132,7 @@ export interface GeneratorDef {
 }
 
 export interface PackDef {
-  name: 'sveltekit' | 'nest';
+  name: 'sveltekit' | 'nest' | 'joy-design-internal';
   version: string;
   compat: Record<string, string>;
   generators: Record<string, GeneratorDef>;

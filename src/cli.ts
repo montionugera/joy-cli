@@ -1,24 +1,28 @@
 import { appendLockEntry, hasPackageDep, loadJoyConfig } from './engine/config.js';
 import { runDoctor, runVerifyGenerator } from './engine/doctor.js';
 import { runInit } from './engine/init.js';
+import { runNewProject } from './engine/new-project.js';
 import { parseCliArgs } from './engine/parse.js';
 import { ExitCode, JoyError, PackDef } from './engine/types.js';
 import { applyPlan } from './engine/writer.js';
+import { joyDesignInternalPack, verifyJoyDesignComponent } from './packs/joy-design-internal/index.js';
 import { nestPack } from './packs/nest/index.js';
 import { sveltekitPack } from './packs/sveltekit/index.js';
 
 export const BUILTIN_PACKS: Record<string, PackDef> = {
   sveltekit: sveltekitPack,
   nest: nestPack,
+  'joy-design-internal': joyDesignInternalPack,
 };
 
 function printHelp(): void {
   console.log(`@montionugera/joy-cli (v0.1.0) — Joymify project scaffolding CLI
 
 Usage:
+  joy new <project-name> [--template sveltekit|nest] [--dry-run] [--force]
   joy init [--dry-run] [--install-deps]
   joy doctor [--strict] [--json]
-  joy verify <generator> <Name>
+  joy verify [generator] <Name>
   joy g <generator> <Name> [options]
 
 SvelteKit Pack Generators:
@@ -53,7 +57,7 @@ Flags:
 }
 
 function resolveGenerator(
-  packNames: ('sveltekit' | 'nest')[],
+  packNames: ('sveltekit' | 'nest' | 'joy-design-internal')[],
   generatorName: string
 ): { pack: PackDef; gen: PackDef['generators'][string] } {
   for (const packName of packNames) {
@@ -83,6 +87,22 @@ export async function runCli(
 
     if (args.command === 'help') {
       printHelp();
+      return 0;
+    }
+
+    if (args.command === 'new') {
+      const res = runNewProject(cwd, args.target!, {
+        template: args.template ?? 'sveltekit',
+        dryRun: args.dryRun,
+        force: args.force,
+      });
+      if (args.json) {
+        console.log(JSON.stringify(res, null, 2));
+      } else {
+        console.log(
+          `[joy new] Created ${res.template} project "${res.projectName}" at ${res.targetDir} (${res.files.length} files)`
+        );
+      }
       return 0;
     }
 
@@ -130,7 +150,13 @@ export async function runCli(
     };
 
     if (args.command === 'verify') {
-      const results = runVerifyGenerator(ctx, gen);
+      const results =
+        pack.name === 'joy-design-internal' && gen.name === 'component'
+          ? verifyJoyDesignComponent(cwd, args.target!)
+          : runVerifyGenerator(ctx, gen);
+      if (pack.name === 'joy-design-internal' && gen.name === 'component') {
+        console.log('PENDING flutter');
+      }
       let anyFail = false;
       for (const r of results) {
         if (r.ok) {

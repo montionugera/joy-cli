@@ -293,6 +293,18 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
       result.sizes = arg.slice('--sizes='.length);
     } else if (arg === '--sizes') {
       result.sizes = argv[++i];
+    } else if (arg.startsWith('--template=')) {
+      const val = arg.slice('--template='.length);
+      if (val !== 'sveltekit' && val !== 'nest') {
+        throw new JoyError('E_USAGE', `Invalid --template="${val}". Expected sveltekit or nest`, 2);
+      }
+      result.template = val;
+    } else if (arg === '--template') {
+      const val = argv[++i];
+      if (val !== 'sveltekit' && val !== 'nest') {
+        throw new JoyError('E_USAGE', `Invalid --template="${val}". Expected sveltekit or nest`, 2);
+      }
+      result.template = val;
     } else if (arg.startsWith('--orm=')) {
       const val = arg.slice('--orm='.length);
       if (val !== 'typeorm' && val !== 'prisma') {
@@ -325,12 +337,25 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     result.command = 'doctor';
     return result;
   }
+  if (cmd === 'new') {
+    result.command = 'new';
+    result.target = positionals[1];
+    if (!result.target) {
+      throw new JoyError('E_USAGE', 'Usage: joy new <project-name> [--template sveltekit|nest] [--orm typeorm|prisma]', 2);
+    }
+    return result;
+  }
   if (cmd === 'verify') {
     result.command = 'verify';
-    result.generator = positionals[1];
-    result.target = positionals[2];
+    if (positionals.length === 2) {
+      result.generator = 'component';
+      result.target = positionals[1];
+    } else {
+      result.generator = positionals[1];
+      result.target = positionals[2];
+    }
     if (!result.generator || !result.target) {
-      throw new JoyError('E_USAGE', 'Usage: joy verify <generator> <Name>', 2);
+      throw new JoyError('E_USAGE', 'Usage: joy verify [generator] <Name>', 2);
     }
     return result;
   }
