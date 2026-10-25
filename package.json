@@ -1,0 +1,41 @@
+{
+  "name": "@montionugera/joy-cli",
+  "version": "0.1.0",
+  "description": "Installable scaffolding CLI for Joymify TypeScript/Node (SvelteKit & NestJS) projects",
+  "type": "module",
+  "bin": {
+    "joy": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/bin.js",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "typescript": "^5.8.3",
+    "vitest": "^3.0.8",
+    "zod": "^3.24.0"
+  },
+  "license": "MIT"
+}
