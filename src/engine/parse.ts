@@ -102,6 +102,52 @@ export function parseFields(raw?: string): FieldDef[] {
   });
 }
 
+export function extractFieldsFromEntitySpecSource(source: string): FieldDef[] {
+  const fields: FieldDef[] = [];
+  const lines = source.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const decMatch = /^@(?:field\()?([a-zA-Z]+)\((.*?)\)\)?$/.exec(line);
+    if (!decMatch) continue;
+    const fnName = decMatch[1];
+    if (fnName === 'id') continue;
+    const argsStr = decMatch[2];
+    const nextLine = (lines[i + 1] ?? '').trim();
+    const propMatch = /^([a-zA-Z_][a-zA-Z0-9_]*)(\?)?\s*!\s*:\s*([^;]+?)(?:\s*=\s*([^;]+))?;/.exec(
+      nextLine
+    ) || /^([a-zA-Z_][a-zA-Z0-9_]*)(\?)?\s*:\s*([^;=]+?)(?:\s*=\s*([^;]+))?;/.exec(nextLine);
+    if (!propMatch) continue;
+    const name = propMatch[1];
+    const optional = Boolean(propMatch[2]) || argsStr.includes('optional: true');
+    const rawDefault = propMatch[4]?.trim().replace(/^['"]|['"]$/g, '');
+
+    if (fnName === 'enumOf') {
+      const arrMatch = /\[([^\]]+)\]/.exec(argsStr);
+      const enumValues = arrMatch
+        ? arrMatch[1]
+            .split(',')
+            .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+            .filter(Boolean)
+        : ['default'];
+      fields.push({
+        name,
+        type: 'enum',
+        optional,
+        ...(rawDefault !== undefined ? { defaultValue: rawDefault } : {}),
+        enumValues,
+      });
+    } else if (VALID_FIELD_TYPES.has(fnName as FieldType)) {
+      fields.push({
+        name,
+        type: fnName as FieldType,
+        optional,
+        ...(rawDefault !== undefined ? { defaultValue: rawDefault } : {}),
+      });
+    }
+  }
+  return fields;
+}
+
 export function parseProps(raw?: string): PropDef[] {
   if (!raw || !raw.trim()) return [];
   const entries = raw.split(',').map((s) => s.trim()).filter(Boolean);
@@ -196,6 +242,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const result: ParsedCliArgs = {
     command: 'help',
     orm: 'typeorm',
+    installDeps: false,
     dryRun: false,
     force: false,
     regen: false,
@@ -211,6 +258,8 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     const arg = argv[i];
     if (arg === '--dry-run') {
       result.dryRun = true;
+    } else if (arg === '--install-deps') {
+      result.installDeps = true;
     } else if (arg === '--force') {
       result.force = true;
     } else if (arg === '--regen') {

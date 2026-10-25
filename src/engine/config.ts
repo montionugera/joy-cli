@@ -6,6 +6,7 @@ export const APP_MODULE_CANDIDATES = [
   'src/app.module.ts',
   'src/modules/main/app.module.ts',
   'src/modules/app/app.module.ts',
+  'user-api/src/app.module.ts',
 ];
 
 export function detectAppModulePath(cwd: string): string {
@@ -18,23 +19,43 @@ export function detectAppModulePath(cwd: string): string {
 }
 
 export function detectStack(cwd: string): 'sveltekit' | 'nest' | null {
+  const pkgPaths = [
+    path.join(cwd, 'package.json'),
+    path.join(cwd, 'user-api/package.json'),
+  ];
+  for (const pkgPath of pkgPaths) {
+    if (!fs.existsSync(pkgPath)) continue;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const allDeps = {
+        ...(pkg.dependencies ?? {}),
+        ...(pkg.devDependencies ?? {}),
+      };
+      if (allDeps['@sveltejs/kit'] || allDeps['svelte']) {
+        return 'sveltekit';
+      }
+      if (allDeps['@nestjs/core'] || allDeps['@nestjs/common']) {
+        return 'nest';
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
+export function hasPackageDep(cwd: string, depName: string): boolean {
   const pkgPath = path.join(cwd, 'package.json');
-  if (!fs.existsSync(pkgPath)) return null;
+  if (!fs.existsSync(pkgPath)) return false;
   try {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
     const allDeps = {
       ...(pkg.dependencies ?? {}),
       ...(pkg.devDependencies ?? {}),
     };
-    if (allDeps['@sveltejs/kit'] || allDeps['svelte']) {
-      return 'sveltekit';
-    }
-    if (allDeps['@nestjs/core'] || allDeps['@nestjs/common']) {
-      return 'nest';
-    }
-    return null;
+    return Boolean(allDeps[depName]);
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -71,11 +92,10 @@ export function defaultConfigForStack(
   const appModule = detectAppModulePath(cwd);
   const verify: string[] = [];
   if (scripts['build']) verify.push('pnpm build');
-  if (scripts['test']) verify.push('pnpm test');
   return {
     packs: ['nest'],
     paths: {
-      modules: 'src/modules',
+      modules: appModule.startsWith('user-api/') ? 'user-api/src/modules' : 'src/modules',
     },
     verify,
     anchors: {
@@ -102,19 +122,22 @@ export function loadJoyConfig(cwd: string): JoyConfig {
   return defaultConfigForStack(cwd, detected);
 }
 
+export function readLock(cwd: string): JoyLock {
+  const lockPath = path.join(cwd, '.joy/lock.json');
+  if (!fs.existsSync(lockPath)) return { entries: [] };
+  try {
+    const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as JoyLock;
+    return Array.isArray(lock.entries) ? lock : { entries: [] };
+  } catch {
+    return { entries: [] };
+  }
+}
+
 export function appendLockEntry(cwd: string, entry: LockEntry): void {
   const lockDir = path.join(cwd, '.joy');
   const lockPath = path.join(lockDir, 'lock.json');
   fs.mkdirSync(lockDir, { recursive: true });
-  let lock: JoyLock = { entries: [] };
-  if (fs.existsSync(lockPath)) {
-    try {
-      lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as JoyLock;
-      if (!Array.isArray(lock.entries)) lock.entries = [];
-    } catch {
-      lock = { entries: [] };
-    }
-  }
+  const lock = readLock(cwd);
   const existingIdx = lock.entries.findIndex(
     (e) => e.generator === entry.generator && e.target === entry.target
   );

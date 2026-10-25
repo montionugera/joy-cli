@@ -58,7 +58,6 @@ export function insertAtAnchor(
   }
 
   if (opts?.arrayItem && anchorIdx > 0) {
-    // Ensure previous non-empty, non-comment line before anchor has a trailing comma if it is an array element
     for (let i = anchorIdx - 1; i >= 0; i--) {
       const prev = lines[i].trim();
       if (!prev || prev.startsWith('//') || prev.startsWith('/*')) continue;
@@ -80,10 +79,11 @@ export function ensureNestAppModuleAnchors(source: string): string {
     const lines = result.split('\n');
     let lastImportIdx = -1;
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith('import ') || lines[i].startsWith('} from ')) {
+      const trimmed = lines[i].trimStart();
+      if (trimmed.startsWith('import ') || trimmed.startsWith('} from ')) {
         lastImportIdx = i;
       }
-      if (lines[i].startsWith('@Module')) break;
+      if (trimmed.startsWith('@Module')) break;
     }
     if (lastImportIdx !== -1) {
       lines.splice(lastImportIdx + 1, 0, '// joy:anchor app-module-imports');

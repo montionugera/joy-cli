@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { execSync } from 'node:child_process';
 import { ensureNestAppModuleAnchors } from './anchors.js';
 import {
   defaultConfigForStack,
@@ -10,6 +11,7 @@ import { JoyConfig, JoyError } from './types.js';
 
 export interface InitOptions {
   dryRun?: boolean;
+  installDeps?: boolean;
 }
 
 export interface InitResult {
@@ -74,6 +76,21 @@ export function runInit(cwd: string, opts: InitOptions = {}): InitResult {
     if (!opts.dryRun) {
       fs.writeFileSync(configPath, renderedConfig, 'utf8');
     }
+  }
+
+  // 4. Optional --install-deps
+  if (opts.installDeps && !opts.dryRun) {
+    const depsToInstall =
+      stack === 'sveltekit'
+        ? ['@montionugera/joy-tokens']
+        : [
+            '@montionugera/entity-spec',
+            '@montionugera/entity-spec-gen-zod',
+            '@montionugera/entity-spec-gen-openapi',
+            '@montionugera/server-decorator',
+            'zod',
+          ];
+    execSync(`pnpm add ${depsToInstall.join(' ')}`, { cwd, stdio: 'inherit' });
   }
 
   return { stack, config, touchedFiles };

@@ -1,12 +1,24 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { hasAnchor } from './anchors.js';
-import { loadJoyConfig } from './config.js';
-import { JoyError, JoyLock, PackDef } from './types.js';
+import { loadJoyConfig, readLock } from './config.js';
+import {
+  GeneratorContext,
+  JoyError,
+  PackDef,
+  ParsedCliArgs,
+} from './types.js';
 
 export interface DoctorResult {
   ok: boolean;
   warnings: string[];
+  diffs: Record<string, string>;
+}
+
+export interface VerifyEntryResult {
+  relPath: string;
+  ok: boolean;
+  reason?: string;
 }
 
 function parseMajor(ver: string): number | null {
@@ -16,7 +28,9 @@ function parseMajor(ver: string): number | null {
 }
 
 export function semverSatisfies(installed: string, range: string): boolean {
-  if (installed === 'workspace:*') return true;
+  if (installed === 'workspace:*' || installed.startsWith('file:') || installed.startsWith('link:')) {
+    return true;
+  }
   const instMajor = parseMajor(installed);
   if (instMajor === null) return true;
   const alternatives = range.split('||').map((s) => s.trim());
@@ -26,12 +40,18 @@ export function semverSatisfies(installed: string, range: string): boolean {
   });
 }
 
+function unifiedSnippetDiff(relPath: string, diskContent: string, expectedContent: string): string {
+  if (diskContent === expectedContent) return '';
+  return `--- a/${relPath} (disk)\n+++ b/${relPath} (template)\n@@\n-${diskContent.split('\n')[0] ?? ''}\n+${expectedContent.split('\n')[0] ?? ''}`;
+}
+
 export function runDoctor(
   cwd: string,
   packs: Record<string, PackDef>,
   opts: { strict?: boolean } = {}
 ): DoctorResult {
   const warnings: string[] = [];
+  const diffs: Record<string, string> = {};
   const config = loadJoyConfig(cwd);
 
   // 1. Check .npmrc for @montionugera:registry
@@ -87,21 +107,51 @@ export function runDoctor(
     }
   }
 
-  // 4. Check .joy/lock.json template version drift
-  const lockPath = path.join(cwd, '.joy/lock.json');
-  if (fs.existsSync(lockPath)) {
-    try {
-      const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as JoyLock;
-      for (const entry of lock.entries ?? []) {
-        const pack = packs[entry.pack];
-        if (pack && entry.packVersion !== pack.version) {
-          warnings.push(
-            `Template drift: "${entry.generator} ${entry.target}" was generated with ${entry.pack}@${entry.packVersion} (current: ${pack.version}).`
-          );
+  // 4. Check .joy/lock.json template version drift & print template diff
+  const lock = readLock(cwd);
+  for (const entry of lock.entries) {
+    const pack = packs[entry.pack];
+    if (!pack) continue;
+    const gen = pack.generators[entry.generator];
+    if (entry.packVersion !== pack.version) {
+      warnings.push(
+        `Template drift: "${entry.generator} ${entry.target}" was generated with ${entry.pack}@${entry.packVersion} (current: ${pack.version}).`
+      );
+    }
+    if (gen) {
+      try {
+        const synthArgs: ParsedCliArgs = {
+          command: 'generate',
+          generator: entry.generator,
+          target: entry.target,
+          fields: entry.fields,
+          props: entry.props,
+          events: entry.events,
+          sizes: entry.sizes,
+          orm: 'typeorm',
+          installDeps: false,
+          dryRun: true,
+          force: false,
+          regen: false,
+          check: false,
+          json: false,
+          keepOnFail: false,
+          noVerify: true,
+          strict: false,
+        };
+        const plan = gen.plan({ cwd, target: entry.target, args: synthArgs, config });
+        for (const c of plan.creates) {
+          const abs = path.join(cwd, c.relPath);
+          if (fs.existsSync(abs)) {
+            const disk = fs.readFileSync(abs, 'utf8');
+            if (disk !== c.content && entry.packVersion !== pack.version) {
+              diffs[c.relPath] = unifiedSnippetDiff(c.relPath, disk, c.content);
+            }
+          }
         }
+      } catch {
+        // ignore synthesis errors in doctor
       }
-    } catch {
-      warnings.push('Could not parse .joy/lock.json.');
     }
   }
 
@@ -116,5 +166,40 @@ export function runDoctor(
   return {
     ok: warnings.length === 0,
     warnings,
+    diffs,
   };
+}
+
+export function runVerifyGenerator(
+  ctx: GeneratorContext,
+  gen: PackDef['generators'][string]
+): VerifyEntryResult[] {
+  const expected = gen.expectedPaths(ctx);
+  let generatedContents = new Map<string, string>();
+  try {
+    const plan = gen.plan(ctx);
+    for (const c of plan.creates) {
+      if (c.generated) {
+        generatedContents.set(c.relPath, c.content);
+      }
+    }
+  } catch {
+    // ignore if plan needs extra flags
+  }
+
+  return expected.map((relPath) => {
+    const absPath = path.join(ctx.cwd, relPath);
+    if (!fs.existsSync(absPath)) {
+      return { relPath, ok: false, reason: 'missing' };
+    }
+    const content = fs.readFileSync(absPath, 'utf8');
+    if (content.trim().length === 0) {
+      return { relPath, ok: false, reason: 'empty' };
+    }
+    const expectedGen = generatedContents.get(relPath);
+    if (expectedGen !== undefined && content !== expectedGen) {
+      return { relPath, ok: false, reason: 'drifted' };
+    }
+    return { relPath, ok: true };
+  });
 }

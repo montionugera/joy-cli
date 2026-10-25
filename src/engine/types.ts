@@ -59,6 +59,7 @@ export interface ParsedCliArgs {
   events?: string;
   sizes?: string;
   orm: 'typeorm' | 'prisma';
+  installDeps: boolean;
   dryRun: boolean;
   force: boolean;
   regen: boolean;
@@ -103,6 +104,10 @@ export interface LockEntry {
   pack: string;
   packVersion: string;
   target: string;
+  fields?: string;
+  props?: string;
+  events?: string;
+  sizes?: string;
   files: string[];
   at: string;
 }
