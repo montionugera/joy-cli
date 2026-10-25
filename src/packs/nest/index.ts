@@ -115,7 +115,7 @@ import {
   openapiComponents,
   openapiPaths,
 } from '@montionugera/entity-spec-gen-openapi';
-import { ${name}EntitySpec } from '../${kebab}.entity-spec.js';
+import { ${name}EntitySpec } from '../${kebab}.entity-spec';
 
 export const Create${name}Schema = createSchema(${name}EntitySpec);
 export const Update${name}Schema = updateSchema(${name}EntitySpec);
@@ -152,7 +152,7 @@ function renderDtoSpec(name: string, kebab: string, fields: FieldDef[]): string 
   Create${name}Schema,
   Update${name}Schema,
   ${name}OpenApi,
-} from './${kebab}.dto.js';
+} from './${kebab}.dto';
 
 describe('${name} DTO & OpenAPI schemas', () => {
   it('validates create payload and generates OpenAPI paths', () => {
@@ -247,8 +247,8 @@ function renderRepository(name: string, kebab: string): string {
   return `import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ${name}Entity } from './${kebab}.entity.js';
-import type { Create${name}Dto, Update${name}Dto } from './dto/${kebab}.dto.js';
+import { ${name}Entity } from './${kebab}.entity';
+import type { Create${name}Dto, Update${name}Dto } from './dto/${kebab}.dto';
 
 @Injectable()
 export class ${name}Repository {
@@ -284,7 +284,7 @@ export class ${name}Repository {
 }
 
 function renderRepositorySpec(name: string, kebab: string): string {
-  return `import { ${name}Repository } from './${kebab}.repository.js';
+  return `import { ${name}Repository } from './${kebab}.repository';
 
 describe('${name}Repository', () => {
   it('delegates findAll and findOne to TypeORM Repository', async () => {
@@ -303,14 +303,14 @@ describe('${name}Repository', () => {
 function renderService(name: string, kebab: string): string {
   const camel = toCamel(name);
   return `import { Injectable, NotFoundException } from '@nestjs/common';
-import { ${name}Repository } from './${kebab}.repository.js';
+import { ${name}Repository } from './${kebab}.repository';
 import {
   Create${name}Schema,
   Update${name}Schema,
   type Create${name}Dto,
   type Update${name}Dto,
-} from './dto/${kebab}.dto.js';
-import type { ${name}Entity } from './${kebab}.entity.js';
+} from './dto/${kebab}.dto';
+import type { ${name}Entity } from './${kebab}.entity';
 
 @Injectable()
 export class ${name}Service {
@@ -351,7 +351,7 @@ export class ${name}Service {
 }
 
 function renderServiceSpec(name: string, kebab: string): string {
-  return `import { ${name}Service } from './${kebab}.service.js';
+  return `import { ${name}Service } from './${kebab}.service';
 
 describe('${name}Service', () => {
   it('delegates findAll to ${name}Repository', async () => {
@@ -379,8 +379,8 @@ function renderController(name: string, kebab: string): string {
   Post,
   Query,
 } from '@nestjs/common';
-import { ${name}Service } from './${kebab}.service.js';
-import type { Create${name}Dto, Update${name}Dto } from './dto/${kebab}.dto.js';
+import { ${name}Service } from './${kebab}.service';
+import type { Create${name}Dto, Update${name}Dto } from './dto/${kebab}.dto';
 
 @Controller('${pluralKebab}')
 export class ${name}Controller {
@@ -421,7 +421,7 @@ export class ${name}Controller {
 }
 
 function renderControllerSpec(name: string, kebab: string): string {
-  return `import { ${name}Controller } from './${kebab}.controller.js';
+  return `import { ${name}Controller } from './${kebab}.controller';
 
 describe('${name}Controller', () => {
   it('delegates findAll to ${name}Service', async () => {
@@ -438,10 +438,10 @@ describe('${name}Controller', () => {
 function renderModule(name: string, kebab: string): string {
   return `import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ${name}Entity } from './${kebab}.entity.js';
-import { ${name}Repository } from './${kebab}.repository.js';
-import { ${name}Service } from './${kebab}.service.js';
-import { ${name}Controller } from './${kebab}.controller.js';
+import { ${name}Entity } from './${kebab}.entity';
+import { ${name}Repository } from './${kebab}.repository';
+import { ${name}Service } from './${kebab}.service';
+import { ${name}Controller } from './${kebab}.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([${name}Entity])],

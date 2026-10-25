@@ -59,35 +59,38 @@ export function runNewProject(
           'test:unit': 'vitest run',
         },
         dependencies: {
-          '@montionugera/joy-svelte': '^0.2.1',
           '@montionugera/joy-tokens': '^0.2.1',
+          '@montionugera/joy-icons': '^0.3.0',
+          '@montionugera/joy-brand': '^0.2.0',
         },
         devDependencies: {
-          '@sveltejs/kit': '^2.0.0',
+          '@sveltejs/kit': '^2.50.0',
+          '@sveltejs/vite-plugin-svelte': '^5.0.0',
           svelte: '^5.0.0',
           'svelte-check': '^4.0.0',
           typescript: '^5.6.0',
+          vite: '^6.0.0',
           vitest: '^3.0.0',
         },
       },
       null,
       2
-    )}
+    )}\n`;
+    filesToWrite['svelte.config.js'] = `export default {
+  kit: {},
+};
 `;
     filesToWrite['tsconfig.json'] = `${JSON.stringify(
       {
+        extends: './.svelte-kit/tsconfig.json',
         compilerOptions: {
-          target: 'ES2022',
-          module: 'NodeNext',
-          moduleResolution: 'NodeNext',
           strict: true,
           skipLibCheck: true,
         },
       },
       null,
       2
-    )}
-`;
+    )}\n`;
     filesToWrite['src/routes/+page.svelte'] = `<script lang="ts">
   let { data } = $props();
 </script>
@@ -106,6 +109,15 @@ export function runNewProject(
           build: 'tsc -p tsconfig.json --noEmit',
           test: 'jest',
         },
+        jest: {
+          moduleFileExtensions: ['js', 'json', 'ts'],
+          rootDir: '.',
+          testRegex: '.*\\.spec\\.ts$',
+          transform: {
+            '^.+\\.ts$': 'ts-jest',
+          },
+          testEnvironment: 'node',
+        },
         dependencies: {
           '@montionugera/entity-spec': '^2.0.28',
           '@montionugera/entity-spec-gen-openapi': '^2.0.28',
@@ -119,14 +131,16 @@ export function runNewProject(
           zod: '^3.23.8',
         },
         devDependencies: {
+          '@types/jest': '^29.5.0',
+          '@types/node': '^22.0.0',
           jest: '^29.7.0',
+          'ts-jest': '^29.2.0',
           typescript: '^5.6.0',
         },
       },
       null,
       2
-    )}
-`;
+    )}\n`;
     filesToWrite['tsconfig.json'] = `${JSON.stringify(
       {
         compilerOptions: {
@@ -137,12 +151,12 @@ export function runNewProject(
           emitDecoratorMetadata: true,
           strict: true,
           skipLibCheck: true,
+          types: ['node', 'jest'],
         },
       },
       null,
       2
-    )}
-`;
+    )}\n`;
     filesToWrite['src/modules/main/app.module.ts'] = `import { Module } from '@nestjs/common';
 // joy:anchor app-module-imports
 
