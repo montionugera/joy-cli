@@ -1,3 +1,6 @@
+import * as path from 'node:path';
+import { JoyError } from './types.js';
+
 export function toKebab(input: string): string {
   return input
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -44,4 +47,25 @@ export function isPascalCase(input: string): boolean {
 
 export function isKebabRoute(input: string): boolean {
   return /^[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*)*$/.test(input);
+}
+
+export function assertSafeRelativePath(cwd: string, relPath: string): string {
+  if (!relPath || path.isAbsolute(relPath) || !/^[a-zA-Z0-9._/+-]+$/.test(relPath)) {
+    throw new JoyError(
+      'E_USAGE',
+      `Invalid or unsafe relative path "${relPath}"`,
+      2
+    );
+  }
+  const absRoot = path.resolve(cwd);
+  const absTarget = path.resolve(cwd, relPath);
+  const rel = path.relative(absRoot, absTarget);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new JoyError(
+      'E_USAGE',
+      `Path "${relPath}" resolves outside workspace root "${absRoot}"`,
+      2
+    );
+  }
+  return absTarget;
 }

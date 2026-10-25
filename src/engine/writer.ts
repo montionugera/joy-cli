@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
+import { assertSafeRelativePath } from './names.js';
 import { JoyError, PlanResult } from './types.js';
 
 export const GENERATED_BANNER =
@@ -41,7 +42,7 @@ export function applyPlan(
 
   // Phase 1: Validate all target files in memory before touching disk
   for (const item of plan.creates) {
-    const absPath = path.join(cwd, item.relPath);
+    const absPath = assertSafeRelativePath(cwd, item.relPath);
     const exists = fs.existsSync(absPath);
 
     if (opts.check) {
@@ -86,7 +87,7 @@ export function applyPlan(
   }
 
   for (const edit of plan.edits) {
-    const absPath = path.join(cwd, edit.relPath);
+    const absPath = assertSafeRelativePath(cwd, edit.relPath);
     const current = fs.existsSync(absPath) ? fs.readFileSync(absPath, 'utf8') : '';
     if (current !== edit.content) {
       summary.edited.push(edit.relPath);
@@ -101,22 +102,22 @@ export function applyPlan(
   // Phase 2: Snapshot prior state for atomic rollback
   const snapshots = new Map<string, string | null>();
   for (const item of plan.creates) {
-    const absPath = path.join(cwd, item.relPath);
+    const absPath = assertSafeRelativePath(cwd, item.relPath);
     snapshots.set(absPath, fs.existsSync(absPath) ? fs.readFileSync(absPath, 'utf8') : null);
   }
   for (const edit of plan.edits) {
-    const absPath = path.join(cwd, edit.relPath);
+    const absPath = assertSafeRelativePath(cwd, edit.relPath);
     snapshots.set(absPath, fs.existsSync(absPath) ? fs.readFileSync(absPath, 'utf8') : null);
   }
 
   // Phase 3: Write all files
   for (const item of plan.creates) {
-    const absPath = path.join(cwd, item.relPath);
+    const absPath = assertSafeRelativePath(cwd, item.relPath);
     fs.mkdirSync(path.dirname(absPath), { recursive: true });
     fs.writeFileSync(absPath, item.content, 'utf8');
   }
   for (const edit of plan.edits) {
-    const absPath = path.join(cwd, edit.relPath);
+    const absPath = assertSafeRelativePath(cwd, edit.relPath);
     fs.mkdirSync(path.dirname(absPath), { recursive: true });
     fs.writeFileSync(absPath, edit.content, 'utf8');
   }

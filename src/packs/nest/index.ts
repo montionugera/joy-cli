@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { insertAtAnchor } from '../../engine/anchors.js';
 import { readLock } from '../../engine/config.js';
 import {
+  assertSafeRelativePath,
   isPascalCase,
   toCamel,
   toKebab,
@@ -790,7 +791,7 @@ export const nestPack: PackDef = {
         return [`${stem}.spec.ts`];
       },
       plan(ctx: GeneratorContext): PlanResult {
-        const absTarget = path.join(ctx.cwd, ctx.target);
+        const absTarget = assertSafeRelativePath(ctx.cwd, ctx.target);
         if (!fs.existsSync(absTarget)) {
           throw new JoyError(
             'E_TARGET_MISSING',

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { hasPackageDep } from '../../engine/config.js';
 import {
+  assertSafeRelativePath,
   isKebabRoute,
   isPascalCase,
   toKebab,
@@ -247,6 +248,7 @@ export const sveltekitPack: PackDef = {
   name: 'sveltekit',
   version: '0.1.0',
   compat: {
+    '@sveltejs/kit': '^2.0.0',
     svelte: '^5.0.0',
   },
   generators: {
@@ -338,7 +340,7 @@ export const sveltekitPack: PackDef = {
         return [dir === '.' ? `${base}.test.ts` : `${dir}/${base}.test.ts`];
       },
       plan(ctx: GeneratorContext): PlanResult {
-        const absTarget = path.join(ctx.cwd, ctx.target);
+        const absTarget = assertSafeRelativePath(ctx.cwd, ctx.target);
         if (!fs.existsSync(absTarget)) {
           throw new JoyError(
             'E_TARGET_MISSING',

@@ -145,3 +145,26 @@ describe('Task 0: Engine Contract', () => {
     expect(fs.readFileSync(existingPath, 'utf8')).toBe('export const a = 1;\n// joy:anchor test\n');
   });
 });
+
+describe('Security: Path traversal & unsafe path rejection', () => {
+  it('rejects ../ path traversal and shell metacharacters with E_USAGE (exitCode 2)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'joy-cli-sec-'));
+    try {
+      expect(() =>
+        applyPlan(tmp, {
+          creates: [{ relPath: '../../escape.ts', content: 'export const x = 1;\n' }],
+          edits: [],
+        })
+      ).toThrowError(/E_USAGE/);
+
+      expect(() =>
+        applyPlan(tmp, {
+          creates: [{ relPath: 'src/bad;rm -rf.ts', content: 'export const x = 1;\n' }],
+          edits: [],
+        })
+      ).toThrowError(/E_USAGE/);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});

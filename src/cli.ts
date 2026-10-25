@@ -148,9 +148,9 @@ export async function runCli(
     const verifyCommands = [...config.verify];
     if (plan.testFiles && plan.testFiles.length > 0) {
       if (pack.name === 'sveltekit' && hasPackageDep(cwd, 'vitest')) {
-        verifyCommands.push(`pnpm exec vitest run ${plan.testFiles.join(' ')}`);
+        verifyCommands.push(`pnpm exec vitest run ${plan.testFiles.map((f) => JSON.stringify(f)).join(' ')}`);
       } else if (pack.name === 'nest' && hasPackageDep(cwd, 'jest')) {
-        verifyCommands.push(`pnpm exec jest ${plan.testFiles.join(' ')}`);
+        verifyCommands.push(`pnpm exec jest ${plan.testFiles.map((f) => JSON.stringify(f)).join(' ')}`);
       }
     }
 
